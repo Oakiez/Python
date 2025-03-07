@@ -1,3 +1,4 @@
+# library ที่ใช้
 import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split, cross_val_score
@@ -13,11 +14,12 @@ import os
 RANDOM_SEED = 42
 np.random.seed(RANDOM_SEED)
 
+# ฟังก์ชันโหลด data จาก csv
 def load_data(file_path='diabetes.csv'):
-    """โหลดข้อมูลจากไฟล์ CSV"""
     df = pd.read_csv(file_path)
     return df
 
+# ฟังก์ชันการจัดเตรียมข้อมูล
 def preprocess_data(df):
     """เตรียมข้อมูลสำหรับการทำนาย"""
     column_mapping = {
@@ -32,17 +34,19 @@ def preprocess_data(df):
         'Outcome': 'diabetes'
     }
 
+    # เปลี่ยนชื่อคอลัมน์ต่างๆ ตามที่ตั้งไว้
     df = df.rename(columns=column_mapping)
 
+    # แทนค่าที่เป็น 0 (ยกเว้นบางคอลัมน์) ด้วยค่าเฉลี่ยของคอลัมน์นั้น
     for col in df.columns:
         if df[col].min() == 0 and col not in ['pregnancies', 'diabetes']:
             df[col] = df[col].replace(0, np.nan)
             df[col] = df[col].fillna(df[col].mean())
     return df
 
+# ฟังก์ชันสร้างชุดข้อมูลที่แตกต่างกันสำหรับการฝึกโมเดล
 def create_feature_sets(df):
-    """สร้างชุดข้อมูลสำหรับการฝึกโมเดลในสถานการณ์ต่างๆ"""
-    y = df['diabetes'].values
+    y = df['diabetes'].values # ค่าที่ต้องการพยากรณ์
 
     feature_sets = {
         'full': df[['pregnancies', 'glucose', 'blood_pressure', 'skin_thickness',
@@ -60,16 +64,17 @@ def create_feature_sets(df):
 
     return feature_sets, y
 
+# ฟังก์ชันฝึกโมเดลสำหรับแต่ละชุดข้อมูล
 def train_models(feature_sets, y):
-    """ฝึกโมเดลสำหรับแต่ละชุดข้อมูล"""
     models = {}
     scalers = {}
     results = {}
 
     for name, X in feature_sets.items():
+        # แบ่งข้อมูลเป็นชุดฝึกและชุดทดสอบ โดย 0.2 คือ แบ่งชุดสอบเป็น 20% จากทั้งหมด
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=RANDOM_SEED)
 
-        # มาตรฐานข้อมูล
+        # ปรับมาตรฐานข้อมูล
         scaler = StandardScaler()
         X_train_scaled = scaler.fit_transform(X_train)
         X_test_scaled = scaler.transform(X_test)
@@ -103,11 +108,13 @@ def train_models(feature_sets, y):
 
     return models, scalers, results
 
+# ฟังก์ชันบันทึกโมเดลลงไฟล์
 def save_models(models, scalers, output_dir='models'):
-    """บันทึกโมเดลและ scalers"""
+    # ถ้าไม่มีโฟลเดอร์ สำหรับเก็บโมเดลต่างๆ ก็ให้สร้างขึ้นมา
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # สร้างไฟล์โมเดลและ scalers ต่างๆ
     for name, model in models.items():
         with open(f'{output_dir}/model_{name}.pkl', 'wb') as f:
             pickle.dump(model, f)
@@ -116,8 +123,9 @@ def save_models(models, scalers, output_dir='models'):
         with open(f'{output_dir}/scaler_{name}.pkl', 'wb') as f:
             pickle.dump(scaler, f)
 
+# ฟังก์ชันสร้างกราฟเปรียบเทียบความสำคัญของตัวแปร
 def plot_feature_importance(results, output_dir='plots'):
-    """สร้างกราฟแสดงความสำคัญของแต่ละตัวแปร"""
+    # ถ้าไม่มีโฟลเดอร์ สำหรับเก็บรูปภาพของกราฟแบบต่างๆ ก็ให้สร้างขึ้นมา ในที่นี้คือ plots
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
@@ -128,6 +136,7 @@ def plot_feature_importance(results, output_dir='plots'):
         'minimal': ['Pregnancies', 'Skin Thickness', 'Insulin', 'BMI', 'Diabetes Pedigree', 'Age']
     }
 
+    # เข้าถึง items ในผลลัพธ์ที่ทำนายได้ แล้วทำเป็นกราฟ features importance จากนั้นบันทึกลงในโฟลเดอร์ plots
     for name, result in results.items():
         model = result['model']
         plt.figure(figsize=(10, 6))
@@ -139,11 +148,13 @@ def plot_feature_importance(results, output_dir='plots'):
         plt.tight_layout()
         plt.savefig(f'{output_dir}/feature_importance_{name}.png')
 
+# ฟังก์ชันสร้าง confusion matrix สำหรับแต่ละโมเดล
 def plot_confusion_matrices(results, output_dir='plots'):
-    """สร้าง confusion matrix สำหรับแต่ละโมเดล"""
+    # ถ้าไม่มีโฟลเดอร์ สำหรับเก็บรูปภาพของกราฟแบบต่างๆ ก็ให้สร้างขึ้นมา ในที่นี้คือ plots
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
+    # เข้าถึง items ในผลลัพธ์ที่ทำนายได้ แล้วทำเป็นกราฟ confusion matrix จากนั้นบันทึกลงในโฟลเดอร์ plots
     for name, result in results.items():
         plt.figure(figsize=(8, 6))
         cm = result['confusion_matrix']
@@ -156,8 +167,9 @@ def plot_confusion_matrices(results, output_dir='plots'):
         plt.tight_layout()
         plt.savefig(f'{output_dir}/confusion_matrix_{name}.png')
 
+# ฟังก์ชันเปรียบเทียบประสิทธิภาพของโมเดลต่างๆ
 def compare_models(results):
-    """เปรียบเทียบประสิทธิภาพของโมเดลต่างๆ"""
+    # ค่าต่างๆ ที่นำมาเปรียบเทียบ
     comparison = {
         'Model': [],
         'Accuracy': [],
@@ -165,13 +177,17 @@ def compare_models(results):
         'CV Std': []
     }
 
+    # เข้าถึง items ในผลลัพธ์ แล้วเพิ่มเข้าไปใน list ต่างๆ ที่กำหนดไว้
     for name, result in results.items():
         comparison['Model'].append(name.capitalize())
         comparison['Accuracy'].append(result['accuracy'])
         comparison['CV Mean Accuracy'].append(result['cv_scores'].mean())
         comparison['CV Std'].append(result['cv_scores'].std())
 
+    # สร้าง dataFrame ที่มีคอลัมน์ตาม dictionary ในที่นี้คือ comparison
     comparison_df = pd.DataFrame(comparison)
+
+    # พล็อตกราฟออกมา แล้วเซฟไว้ใน folder plots
     plt.figure(figsize=(10, 6))
     bar_width = 0.35
     index = np.arange(len(comparison['Model']))
@@ -191,8 +207,8 @@ def compare_models(results):
 
     return comparison_df
 
+# ฟังก์ชันหลักสำหรับเรียกใช้งาน
 def main():
-    """ฟังก์ชันหลักสำหรับเรียกใช้งานทั้งหมด"""
     # โหลดและเตรียมข้อมูล
     df = load_data()
     df = preprocess_data(df)
@@ -213,7 +229,7 @@ def main():
     # เปรียบเทียบโมเดล
     compare_models(results)
 
-    print("\nModel training completed successfully!")
+    print("\nเทรนโมเดลเสร็จสมบูรณ์!")
 
 if __name__ == "__main__":
     main()

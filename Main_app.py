@@ -3,7 +3,7 @@ import numpy as np
 import pickle
 import plotly.graph_objects as go
 
-# ต้องเรียกใช้ set_page_config() เป็นคำสั่งแรกใน Streamlit
+# เซ็ตหน้าแรกสำหรับ streamlit
 st.set_page_config(
     page_title="ระบบทำนายความเสี่ยงการเกิดโรคเบาหวาน",
     page_icon="?",
@@ -11,20 +11,21 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# ฟังก์ชัน load model
+# ฟังก์ชัน load model โดยเป็นโมเดลที่ได้จากตัว train_model เพื่อนำมาใช้งาน
 @st.cache_resource
 def load_models():
     try:
+        # สร้าง set ของ models , scalers
         models = {}
         scalers = {}
-        # สำหรับโมเดลแต่ละแบบ (full, no_bp, no_glucose, minimal)
+        # สำหรับเปิดอ่านโมเดลแต่ละแบบ (full, no_bp, no_glucose, minimal)
         for model_type in ['full', 'no_bp', 'no_glucose', 'minimal']:
             with open(f'models/model_{model_type}.pkl', 'rb') as file:
                 models[model_type] = pickle.load(file)
             with open(f'models/scaler_{model_type}.pkl', 'rb') as file:
                 scalers[model_type] = pickle.load(file)
         return models, scalers
-    except FileNotFoundError:
+    except FileNotFoundError: # หากไม่พบไฟล์ของ models ก็ให้แจ้ง error
         st.error("ไม่พบไฟล์โมเดล โปรดรันไฟล์ train_model.py ก่อน")
         st.stop()
     except Exception as e:
@@ -65,6 +66,7 @@ with tab2:
     with col2:
         height_cm = st.number_input("ส่วนสูง (เซนติเมตร)", min_value=0.0, max_value=250.0, value=165.0, step=0.1)
 
+    # ฟังก์ชันคำนวณหาค่า BMI
     if st.button("คำนวณ BMI", use_container_width=True):
         if height_cm > 0:
             height_m = height_cm / 100
@@ -98,11 +100,11 @@ with tab1:
     col1, col2 = st.columns(2)
 
     with col1:
-        # เปลี่ยนจำนวนการตั้งครรภ์เป็นคำถามว่าเคยมีบุตรหรือไม่
+        # การตั้งครรภ์
         has_children = st.radio("เคยมีบุตรมาก่อนหรือไม่", ["ไม่เคย", "เคย"])
         pregnancies = 0 if has_children == "ไม่เคย" else st.number_input("จำนวนบุตร", min_value=1, max_value=20, value=1)
 
-        # ทางเลือกสำหรับระดับน้ำตาล
+        # ระดับน้ำตาลในเลือด
         glucose_option = st.radio("คุณทราบระดับน้ำตาลในเลือด (มก./ดล.) หรือไม่", ["ไม่ทราบ", "ทราบ"])
         if glucose_option == "ทราบ":
             glucose = st.number_input("ระดับน้ำตาลในเลือด (มก./ดล.)", min_value=0, max_value=300, value=100)
@@ -119,7 +121,7 @@ with tab1:
     st.info("ไม่ทราบค่า BMI? ไปที่แท็บ 'คำนวณค่า BMI' เพื่อคำนวณ")
 
     with col2:
-        # ทางเลือกสำหรับความดัน
+        # ความดันโลหิต
         bp_option = st.radio("คุณทราบความดันโลหิต (มม.ปรอท) หรือไม่", ["ไม่ทราบ", "ทราบ"])
         if bp_option == "ทราบ":
             blood_pressure = st.number_input("ความดันโลหิต (มม.ปรอท)", min_value=0, max_value=200, value=70)
@@ -128,7 +130,7 @@ with tab1:
 
         age = st.number_input("อายุ (ปี)", min_value=0, max_value=120)
 
-        # ทำประวัติเบาหวานในครอบครัวให้เข้าใจง่ายขึ้น
+        # ประวัติเบาหวานสำหรับคนรอบตัว
         diabetes_family_history = st.selectbox("ประวัติเบาหวานในครอบครัว",
                                                ["ไม่มีประวัติเบาหวานในครอบครัว",
                                                 "มีญาติห่างๆ เป็นเบาหวาน",
@@ -136,7 +138,7 @@ with tab1:
                                                 "มีพ่อหรือแม่เป็นเบาหวาน",
                                                 "มีพ่อและแม่เป็นเบาหวาน"])
 
-        # แปลงคำตอบเป็นค่า diabetes_pedigree
+        # แปลงคำตอบเป็นค่า diabetes_pedigree(ในการทำนาย)
         if diabetes_family_history == "ไม่มีประวัติเบาหวานในครอบครัว":
             diabetes_pedigree = 0.1
         elif diabetes_family_history == "มีญาติห่างๆ เป็นเบาหวาน":
@@ -148,7 +150,7 @@ with tab1:
         else:
             diabetes_pedigree = 1.5
 
-    # ค่าอื่นๆ ที่ใช้แทนข้อมูลที่ขาด
+    # ค่านี้อาจหาได้ยากสำหรับผู้ใช้ทั่วไป เลยใช้ค่าเฉลี่ยของคนปกติมาใส่แทน
     insulin = 80  # ค่าเฉลี่ยทั่วไป
     skin_thickness = 20  # ค่าเฉลี่ยทั่วไป (ตัดออกจากฟอร์ม)
 
@@ -157,7 +159,7 @@ with tab1:
 
     # เมื่อกดปุ่มทำนาย
     if predict_button:
-        # เลือกโมเดลโดยพิจารณาจากข้อมูลที่ขาด
+        # เลือกโมเดลโดยพิจารณาจากข้อมูลที่ขาดหาย
         if glucose is None and blood_pressure is None:
             model_type = 'minimal'
             input_data = np.array(
@@ -176,7 +178,7 @@ with tab1:
                 [pregnancies, glucose, blood_pressure, skin_thickness, insulin, bmi, diabetes_pedigree, age]).reshape(1,
                                                                                                                       -1)
 
-        # ปรับข้อมูล
+        # ปรับข้อมูลโดยขึ้นอยู่กับขนาดของ input_data เพื่อให้เลือกใช้ model ได้ถูกต้อง
         input_scaled = scalers[model_type].transform(input_data)
 
         # ทำนาย
@@ -190,6 +192,7 @@ with tab1:
         # สร้างกราฟแสดงความน่าจะเป็น
         risk_percent = round(prediction_proba[0][1] * 100, 2)
 
+        # คำแนะนำ
         if prediction[0] == 1:
             st.error(f"⚠️ พบความเสี่ยงเบาหวาน ({risk_percent}%)")
             st.markdown("""
