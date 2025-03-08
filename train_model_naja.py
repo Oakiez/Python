@@ -17,6 +17,8 @@ np.random.seed(RANDOM_SEED)
 # ฟังก์ชันโหลด data จาก csv
 def load_data(file_path='diabetes.csv'):
     df = pd.read_csv(file_path)
+    print(df.head())
+    print(df.isnull().sum())
     return df
 
 # ฟังก์ชันการจัดเตรียมข้อมูล
